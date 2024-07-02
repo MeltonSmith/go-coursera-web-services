@@ -40,6 +40,7 @@ func TestByIlia(t *testing.T) {
 			}
 		}),
 	}
+	//мягкая клетчатка (персии сливы нектарины киви) кисломолочная йогурт кефиры, холензил, 14-21 дней
 
 	start := time.Now()
 
@@ -50,7 +51,7 @@ func TestByIlia(t *testing.T) {
 	expectedTime := time.Millisecond * 350
 
 	if end > expectedTime {
-		t.Errorf("execition too long\nGot: %s\nExpected: <%s", end, expectedTime)
+		t.Errorf("execution too long\nGot: %s\nExpected: <%s", end, expectedTime)
 	}
 
 	if recieved != (1+3+4)*3 {

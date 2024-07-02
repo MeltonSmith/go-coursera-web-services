@@ -154,7 +154,7 @@ func TestSigner(t *testing.T) {
 	}
 
 	if end > expectedTime {
-		t.Errorf("execition too long\nGot: %s\nExpected: <%s", end, time.Second*3)
+		t.Errorf("execution too long\nGot: %s\nExpected: <%s", end, time.Second*3)
 	}
 
 	// 8 потому что 2 в SingleHash и 6 в MultiHash
