@@ -10,11 +10,6 @@ import (
 )
 
 // сюда писать код
-
-type poisonPill struct {
-	name string
-}
-
 func ExecutePipeline(jobs ...job) {
 	prevOutput := make(chan interface{}, 100)
 	wg := &sync.WaitGroup{}
@@ -23,30 +18,15 @@ func ExecutePipeline(jobs ...job) {
 		//input job
 		output := make(chan interface{}, 100)
 		fmt.Println("Running job with Index", idx)
-		if idx == 0 {
-			//fmt.Println("running input with channels", prevOutput, output)
-			go jobInput(idx, joba, prevOutput, output, wg)
-		} else {
-			//fmt.Println("running with channels", prevOutput, output)
-			go jobWorker(idx, joba, prevOutput, output, wg)
-		}
+		go jobWorker(joba, prevOutput, output, wg)
 		prevOutput = output
 	}
 	wg.Wait()
 }
 
-func jobInput(idx int, curJob job, in, out chan interface{}, wg *sync.WaitGroup) {
+func jobWorker(curJob job, in, out chan interface{}, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer func() {
-		fmt.Println("sending poisonpill")
-		out <- poisonPill{"poisonPill"}
-	}()
-	curJob(in, out)
-
-}
-
-func jobWorker(idx int, curJob job, in, out chan interface{}, wg *sync.WaitGroup) {
-	defer wg.Done()
+	defer close(out)
 	curJob(in, out)
 }
 
@@ -55,16 +35,7 @@ func jobWorker(idx int, curJob job, in, out chan interface{}, wg *sync.WaitGroup
 func SingleHash(in, out chan interface{}) {
 	singleHashWg := &sync.WaitGroup{}
 	fmt.Println("Started Singlehash")
-	for {
-		inValue, _ := <-in
-		pill, okk := inValue.(poisonPill)
-		if okk {
-			fmt.Println("poisonPill on singleHash, closing out")
-			singleHashWg.Wait()
-			out <- pill
-			close(out)
-			return
-		}
+	for inValue := range in {
 		singleHashWg.Add(1)
 		go func(inValue interface{}, out chan interface{}) {
 			defer singleHashWg.Done()
@@ -89,7 +60,7 @@ func SingleHash(in, out chan interface{}) {
 			runtime.Gosched()
 		}(inValue, out)
 	}
-
+	singleHashWg.Wait()
 }
 
 // MultiHash считает значение crc32(th+data)) (конкатенация цифры, приведённой к строке и строки),
@@ -99,14 +70,6 @@ func MultiHash(in, out chan interface{}) {
 	fmt.Println("Started MultiHash")
 	multihashWg := &sync.WaitGroup{}
 	for inValue := range in {
-		pill, okk := inValue.(poisonPill)
-		if okk {
-			fmt.Println("poisonPill on multiHash")
-			multihashWg.Wait()
-			out <- pill
-			close(out)
-			return
-		}
 		multihashWg.Add(1)
 		go func(inValue interface{}, out chan interface{}) {
 			defer multihashWg.Done()
@@ -130,6 +93,7 @@ func MultiHash(in, out chan interface{}) {
 			runtime.Gosched()
 		}(inValue, out)
 	}
+	multihashWg.Wait()
 }
 
 // CombineResults получает все результаты, сортирует (https://golang.org/pkg/sort/),
@@ -138,18 +102,14 @@ func CombineResults(in, out chan interface{}) {
 	fmt.Println("Started Combine")
 	var resultSlice []string
 	for inValue := range in {
-		_, okk := inValue.(poisonPill)
-		if okk {
-			sort.Strings(resultSlice)
-			result := strings.Join(resultSlice, "_")
-			fmt.Println("poisonPill on CombineResults, returning result")
-			fmt.Println("Result", result)
-			out <- result
-			close(out)
-			return
-		}
 		resultSlice = append(resultSlice, inValue.(string))
 	}
+	sort.Strings(resultSlice)
+	fmt.Println("poisonPill on CombineResults, returning result")
+	result := strings.Join(resultSlice, "_")
+	fmt.Println("Result", result)
+	out <- result
+
 }
 
 var lockMDMutex = &sync.Mutex{}
